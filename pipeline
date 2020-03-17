@@ -1,64 +1,164 @@
+Following is the Somatic mutation detection following GATK best practice https://software.broadinstitute.org/gatk/best-practices/workflow?id=11145
+ 
+You mentioned that you want to do some modification at cut adaptor step (want to cut the contaminated reads and only filter the adaptor part). If you want to do the modification, I will modify the following pipeline accordingly.
+ 
+=================================================================================================================================================
 module load java
-module load samtools 
+module load samtools
 1. mark duplicate
-java  -Xmx8G -jar /hpc/packages/minerva-common/picard/1.93/bin/MarkDuplicates.jar INPUT=/sc/orga/projects/zhuj05a/jianxia/WES/SAMTOOLS-DNA/sorted.new.bam/10n.sorted.new.bam OUTPUT=/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.bam REMOVE_DUPLICATES=true METRICS_FILE=dup.txt VALIDATION_STRINGENCY=LENIENT
-
-java  -Xmx8G -jar /hpc/packages/minerva-common/picard/1.93/bin/MarkDuplicates.jar INPUT=/sc/orga/projects/zhuj05a/jianxia/WES/SAMTOOLS-DNA/sorted.new.bam/10t.sorted.new.bam OUTPUT=/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.bam REMOVE_DUPLICATES=true METRICS_FILE=dup.txt VALIDATION_STRINGENCY=LENIENT
-
+java  -Xmx8G -jar /hpc/packages/minerva-common/picard/1.93/bin/MarkDuplicates.jar \
+INPUT=/sc/orga/projects/zhuj05a/jianxia/WES/SAMTOOLS-DNA/sorted.new.bam/10n.sorted.new.bam \
+OUTPUT=/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.bam \
+REMOVE_DUPLICATES=true METRICS_FILE=dup.txt VALIDATION_STRINGENCY=LENIENT
+ 
+java  -Xmx8G -jar /hpc/packages/minerva-common/picard/1.93/bin/MarkDuplicates.jar \
+INPUT=/sc/orga/projects/zhuj05a/jianxia/WES/SAMTOOLS-DNA/sorted.new.bam/10t.sorted.new.bam \
+OUTPUT=/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.bam \
+REMOVE_DUPLICATES=true METRICS_FILE=dup.txt VALIDATION_STRINGENCY=LENIENT \
+ 
 2.  index the bam file
 samtools index /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.bam
 samtools index /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.bam
-
-
+ 
+ 
 3. add read group
-java -jar /hpc/packages/minerva-common/picard/1.93/bin/AddOrReplaceReadGroups.jar INPUT=/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.bam OUTPUT=/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.good.bam RGSM=10n RGLB=WES RGPL=illumina RGPU=none VALIDATION_STRINGENCY=LENIENT
-
-java -jar /hpc/packages/minerva-common/picard/1.93/bin/AddOrReplaceReadGroups.jar INPUT=/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.bam OUTPUT=/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.good.bam RGSM=10t RGLB=WES RGPL=illumina RGPU=none VALIDATION_STRINGENCY=LENIENT
-
-
+java -jar /hpc/packages/minerva-common/picard/1.93/bin/AddOrReplaceReadGroups.jar \
+INPUT=/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.bam \
+OUTPUT=/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.good.bam \
+RGSM=10n RGLB=WES RGPL=illumina RGPU=none VALIDATION_STRINGENCY=LENIENT
+ 
+java -jar /hpc/packages/minerva-common/picard/1.93/bin/AddOrReplaceReadGroups.jar \
+INPUT=/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.bam \
+OUTPUT=/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.good.bam \
+RGSM=10t RGLB=WES RGPL=illumina RGPU=none VALIDATION_STRINGENCY=LENIENT
+ 
 4. read quality recalibration
-
-reoder the bam file:
-wget -c ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/hg19/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf.idx.gz
-wget -c ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/hg19/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf.gz
-wget -c ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/hg19/dbsnp_138.hg19.vcf.gz
-wget -c ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/hg19/dbsnp_138.hg19.vcf.idxgz
-wget -c ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/hg19/ucsc.hg19.fasta.gz
-wget -c ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/hg19/ucsc.hg19.fasta.fai.gz
-wget -c ftp://gsapubftp-anonymous@ftp.broadinstitute.org/bundle/hg19/ucsc.hg19.dict.gz
-
-
-java -jar /hpc/packages/minerva-common/picard/2.7.1/picard.jar ReorderSam I=10n.sorted.new.rmdup.good.bam O=10n.sorted.new.rmdup.good.resort.bam R=ucsc.hg19.fasta ALLOW_INCOMPLETE_DICT_CONCORDANCE=TRUE
-
-java -jar /hpc/packages/minerva-common/picard/2.7.1/picard.jar ReorderSam I=10t.sorted.new.rmdup.good.bam O=10t.sorted.new.rmdup.good.resort.bam R=ucsc.hg19.fasta ALLOW_INCOMPLETE_DICT_CONCORDANCE=TRUE
-
-samtools view 10n.sorted.new.rmdup.good.resort.bam > 10n.sorted.new.rmdup.good.resort.sam
-awk '{if($3 != "*"){print $0}}' 10n.sorted.new.rmdup.good.resort.sam > 10n.sorted.new.rmdup.good.resort.filter.sam
-samtools view -H 10n.sorted.new.rmdup.good.resort.bam > header
-cat 10n.sorted.new.rmdup.good.resort.filter.sam >> header
-mv header 10n.sorted.new.rmdup.good.resort.filter.sam
-samtools view -bS 10n.sorted.new.rmdup.good.resort.filter.sam > 10n.sorted.new.rmdup.good.resort.filter.bam
-samtools index 10n.sorted.new.rmdup.good.resort.filter.bam
-
-
+ 
+4.1 reoder the bam file:
+ 
+java -jar /hpc/packages/minerva-common/picard/2.7.1/picard.jar ReorderSam \
+I=/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.good.bam \
+O=/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.good.resort.bam \
+R=ucsc.hg19.fasta ALLOW_INCOMPLETE_DICT_CONCORDANCE=TRUE
+ 
+java -jar /hpc/packages/minerva-common/picard/2.7.1/picard.jar ReorderSam \
+I==/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.good.bam \
+O=10t.sorted.new.rmdup.good.resort.bam \
+R=ucsc.hg19.fasta ALLOW_INCOMPLETE_DICT_CONCORDANCE=TRUE
+ 
+samtools view 10n.sorted.new.rmdup.good.resort.bam | awk '{if($3 != "*"){print $0}}' > 10n.sorted.new.rmdup.good.resort.filter.sam
+ 
+samtools view -H 10n.sorted.new.rmdup.good.resort.bam > 10n.sorted.new.rmdup.good.resort.filter.new.sam
+cat 10n.sorted.new.rmdup.good.resort.filter.sam >> 10n.sorted.new.rmdup.good.resort.filter.new.sam
+rm 10n.sorted.new.rmdup.good.resort.filter.sam
+samtools view -bS 10n.sorted.new.rmdup.good.resort.filter.new.sam > 10n.sorted.new.rmdup.good.resort.filter.new.bam
+samtools index 10n.sorted.new.rmdup.good.resort.filter.new.bam
+ 
+ 
 samtools view 10t.sorted.new.rmdup.good.resort.bam | awk '{if($3 != "*"){print $0}}' > 10t.sorted.new.rmdup.good.resort.filter.sam
-
 samtools view -H 10t.sorted.new.rmdup.good.resort.bam > 10t.sorted.new.rmdup.good.resort.filter.new.sam
 cat 10t.sorted.new.rmdup.good.resort.filter.sam >> 10t.sorted.new.rmdup.good.resort.filter.new.sam
 rm 10t.sorted.new.rmdup.good.resort.filter.sam
 samtools view -bS 10t.sorted.new.rmdup.good.resort.filter.new.sam > 10t.sorted.new.rmdup.good.resort.filter.new.bam
 samtools index 10t.sorted.new.rmdup.good.resort.filter.new.bam
-
-
-
-java -jar /hpc/packages/minerva-common/gatk/3.6-0/src/GenomeAnalysisTK.jar -T BaseRecalibrator -R /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/ucsc.hg19.fasta -I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.good.resort.filter.bam -knownSites /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/dbsnp_138.hg19.vcf -knownSites /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf -o /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.recal.table
-
-java -jar /hpc/packages/minerva-common/gatk/3.6-0/src/GenomeAnalysisTK.jar -T BaseRecalibrator -R /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/ucsc.hg19.fasta -I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.good.resort.filter.new.bam -knownSites /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/dbsnp_138.hg19.vcf -knownSites /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf -o /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.recal.table
-
-#java -jar /hpc/packages/minerva-common/gatk/3.6-0/src/GenomeAnalysisTK.jar -T BaseRecalibrator -R /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/ucsc.hg19.fasta -I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.good.resort.filter.bam -knownSites /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/dbsnp_138.hg19.vcf -knownSites /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf -BQSR /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/recal.table -o /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/recalpost.table
-
-java -jar /hpc/packages/minerva-common/gatk/3.6-0/src/GenomeAnalysisTK.jar -T PrintReads -R /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/ucsc.hg19.fasta -I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.good.resort.filter.bam -BQSR /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.recal.table -o /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.good.resort.filter.recal.bam
-
-java -jar /hpc/packages/minerva-common/gatk/3.6-0/src/GenomeAnalysisTK.jar -T PrintReads -R /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/ucsc.hg19.fasta -I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.good.resort.filter.new.bam -BQSR /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.recal.table -o /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.good.resort.filter.new.recal.bam
-
-
+ 
+4.2 base quality recalibration
+java -jar /hpc/packages/minerva-common/gatk/3.6-0/src/GenomeAnalysisTK.jar -T BaseRecalibrator \
+-R /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/ucsc.hg19.fasta \
+-I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.good.resort.filter.new.bam \
+-knownSites /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/dbsnp_138.hg19.vcf \
+-knownSites /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf \
+-o /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.recal.table
+ 
+java -jar /hpc/packages/minerva-common/gatk/3.6-0/src/GenomeAnalysisTK.jar -T BaseRecalibrator \
+-R /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/ucsc.hg19.fasta \
+-I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.good.resort.filter.new.bam \
+-knownSites /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/dbsnp_138.hg19.vcf \
+-knownSites /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/Mills_and_1000G_gold_standard.indels.hg19.sites.vcf \
+-o /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.recal.table
+ 
+ 
+java -jar /hpc/packages/minerva-common/gatk/3.6-0/src/GenomeAnalysisTK.jar -T PrintReads \
+-R /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/ucsc.hg19.fasta \
+-I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.good.resort.filter.new.bam \
+-BQSR /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.recal.table \
+-o /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.good.resort.filter.recal.bam
+ 
+java -jar /hpc/packages/minerva-common/gatk/3.6-0/src/GenomeAnalysisTK.jar -T PrintReads \
+-R /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/ucsc.hg19.fasta \
+-I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.good.resort.filter.new.bam \
+-BQSR /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.recal.table \
+-o /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.good.resort.filter.new.recal.bam
+ 
+5. build PON
+For sample 10 use normal from all other samples, here only use 3 other normal as an example
+module load gatk/4.0.1.2
+gatk Mutect2 \
+-R /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/ucsc.hg19.fasta \
+-I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/preprocessing/11n/11n.sorted.new.rmdup.good.resort.filter.recal.bam \
+-tumor 11n \
+--disable-read-filter MateOnSameContigOrNoMappedMateReadFilter \
+-O /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/preprocessing/11n/11n.vcf.gz
+ 
+gatk Mutect2 \
+-R /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/ucsc.hg19.fasta \
+-I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/preprocessing/12n/12n.sorted.new.rmdup.good.resort.filter.recal.bam \
+-tumor 12n \
+--disable-read-filter MateOnSameContigOrNoMappedMateReadFilter \
+-O /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/preprocessing/12n/12n.vcf.gz
+ 
+gatk Mutect2 \
+-R /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/ucsc.hg19.fasta \
+-I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/preprocessing/13n/13n.sorted.new.rmdup.good.resort.filter.recal.bam \
+-tumor 13n \
+--disable-read-filter MateOnSameContigOrNoMappedMateReadFilter \
+-O /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/preprocessing/13n/13n.vcf.gz
+ 
+gatk CreateSomaticPanelOfNormals \
+-vcfs /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/preprocessing/11n/11n.vcf.gz \
+-vcfs /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/preprocessing/12n/12n.vcf.gz \
+-vcfs /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/preprocessing/13n/13n.vcf.gz \
+-O /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10.pon.vcf.gz
+ # There is also recommendation to use the pon file from GATK:https://gatkforums.broadinstitute.org/gatk/discussion/24297/panel-of-normals
+ 
+6. run mutect2
+gatk --java-options "-Xmx2g" Mutect2 \
+-R /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/ucsc.hg19.fasta \
+-I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.good.resort.filter.new.recal.bam \
+-I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10n.sorted.new.rmdup.good.resort.filter.recal.bam \
+-tumor 10t \
+-normal 10n \
+-pon /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10.pon.vcf.gz \
+--germline-resource /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/af-only-gnomad.raw.sites.hg19.vcf.gz \
+--af-of-alleles-not-in-resource 0.0000025 \
+--disable-read-filter MateOnSameContigOrNoMappedMateReadFilter \
+-O /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10.somatic_m2.vcf.gz \
+-bamout /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10.tumor_normal_m2.bam
+ 
+7. calculate contamination ratio
+gatk GetPileupSummaries \
+--minimum-mapping-quality 1 \
+-I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.sorted.new.rmdup.good.resort.filter.new.recal.bam \
+-V /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/small_exac_common_3_hg19.vcf.gz \
+-O /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.getpileupsummaries.table
+--disable-read-filter
+ 
+ 
+gatk CalculateContamination \
+-I /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.getpileupsummaries.table \
+-O /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.tumor_calculatecontamination.table
+ 
+8. filter raw vcf
+ 
+gatk FilterMutectCalls \
+-V /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10.somatic_m2.vcf.gz \
+--contamination-table /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10t.tumor_calculatecontamination.table \
+-O /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10.somatic_m2.filter.vcf.gz
+ 
+9. annotation of somatic variant
+perl /hpc/users/wangm08/packages/annovar/annovar/table_annovar.pl \
+/hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10.somatic_m2.filter.vcf.gz \
+/hpc/users/wangm08/Wenhui/IBD/data/hg19/humandb/ \
+-buildver hg19 \
+-out /hpc/users/wangm08/Wenhui/IBD/colon/data/gatk_somatic_snv/10.somatic_m2.filter.annotation \
+-remove -protocol knownGene,1000g2015aug_all,cosmic70,clinvar_20170905 -operation g,f,f,f -nastring . –vcfinput
